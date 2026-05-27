@@ -1,0 +1,9 @@
+si (x > y) {
+    x = x + y
+}
+mientras (a != b) {
+    a = a - b
+}
+si (z == w) {
+    z = z * z
+}

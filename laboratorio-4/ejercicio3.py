@@ -15,7 +15,7 @@ from collections import defaultdict, deque
 
 # ─── Lectura de gramática ─────────────────────────────────────────────────────
 
-def leer_gramatica():
+def leerGramatica():
     gramatica = {}
     orden = []
     print("Ingrese la gramática (formato: A -> alfa | beta)")
@@ -45,13 +45,7 @@ def leer_gramatica():
 
 # ─── Construcción del grafo de "primer símbolo" ──────────────────────────────
 
-def construir_grafo_primer_simbolo(gramatica, nts):
-    """
-    Crea un grafo donde existe arista A → B si A tiene alguna producción
-    cuyo primer símbolo es B (un no-terminal).
-
-    Esto permite detectar recursión izquierda indirecta buscando ciclos.
-    """
+def construirGrafoPrimerSimbolo(gramatica, nts):
     grafo = defaultdict(set)
     for nt in nts:
         for prod in gramatica.get(nt, []):
@@ -60,8 +54,7 @@ def construir_grafo_primer_simbolo(gramatica, nts):
     return grafo
 
 
-def alcanzables_desde(grafo, origen):
-    """BFS: devuelve todos los nodos alcanzables desde 'origen' (sin incluirlo)."""
+def alcanzablesDesde(grafo, origen):
     visitados = set()
     cola = deque(grafo[origen])
     while cola:
@@ -75,8 +68,7 @@ def alcanzables_desde(grafo, origen):
 
 # ─── Detección ────────────────────────────────────────────────────────────────
 
-def detectar_recursion_directa(gramatica, nts):
-    """Devuelve lista de (NT, produccion) con recursión directa."""
+def detectarRecursionDirecta(gramatica, nts):
     directa = []
     for nt in nts:
         for prod in gramatica.get(nt, []):
@@ -85,37 +77,31 @@ def detectar_recursion_directa(gramatica, nts):
     return directa
 
 
-def detectar_recursion_indirecta(gramatica, nts, grafo, directos_set):
-    """
-    Devuelve lista de (NT, camino) con recursión izquierda indirecta.
-    Solo informa NTs que NO tienen recursión directa (para no duplicar).
-    """
+def detectarRecursionIndirecta(gramatica, nts, grafo, directosSet):
     indirecta = []
     for nt in nts:
-        if nt in directos_set:
+        if nt in directosSet:
             continue
-        alcanzables = alcanzables_desde(grafo, nt)
+        alcanzables = alcanzablesDesde(grafo, nt)
         if nt in alcanzables:
-            # Reconstruir el camino del ciclo
-            camino = reconstruir_camino(grafo, nt, nt)
+            camino = reconstruirCamino(grafo, nt, nt)
             indirecta.append((nt, camino))
     return indirecta
 
 
-def reconstruir_camino(grafo, origen, destino):
-    """BFS para encontrar el camino más corto de origen de vuelta a destino."""
+def reconstruirCamino(grafo, origen, destino):
     cola = deque([[origen]])
     visitados = {origen}
     while cola:
         camino = cola.popleft()
         ultimo = camino[-1]
         for vecino in grafo[ultimo]:
-            nuevo_camino = camino + [vecino]
+            nuevoCamino = camino + [vecino]
             if vecino == destino:
-                return nuevo_camino
+                return nuevoCamino
             if vecino not in visitados:
                 visitados.add(vecino)
-                cola.append(nuevo_camino)
+                cola.append(nuevoCamino)
     return [origen, destino]
 
 
@@ -126,7 +112,7 @@ def main():
     print("  EJERCICIO 3: Detector de Recursión por la Izquierda")
     print("=" * 62 + "\n")
 
-    gramatica, orden = leer_gramatica()
+    gramatica, orden = leerGramatica()
     if not gramatica:
         print("[!] Gramática vacía."); return
 
@@ -139,13 +125,12 @@ def main():
         for prod in gramatica[nt]:
             print(f"    {nt} → {' '.join(prod)}")
 
-    grafo = construir_grafo_primer_simbolo(gramatica, nts)
+    grafo = construirGrafoPrimerSimbolo(gramatica, nts)
 
     print("\n── Análisis de Recursión por la Izquierda ──────────────────")
 
-    # ── Recursión directa ──
-    directa = detectar_recursion_directa(gramatica, nts)
-    directos_set = {nt for nt, _ in directa}
+    directa = detectarRecursionDirecta(gramatica, nts)
+    directosSet = {nt for nt, _ in directa}
 
     if directa:
         print("\n  [!] Recursión DIRECTA detectada:")
@@ -154,8 +139,7 @@ def main():
     else:
         print("\n  [OK] Sin recursión directa.")
 
-    # ── Recursión indirecta ──
-    indirecta = detectar_recursion_indirecta(gramatica, nts, grafo, directos_set)
+    indirecta = detectarRecursionIndirecta(gramatica, nts, grafo, directosSet)
 
     if indirecta:
         print("\n  [!] Recursión INDIRECTA detectada:")
@@ -164,17 +148,16 @@ def main():
     else:
         print("  [OK] Sin recursión indirecta.")
 
-    # ── Resumen ──
-    tiene_recursion = bool(directa or indirecta)
-    todos_recursivos = sorted(directos_set | {nt for nt, _ in indirecta})
+    tieneRecursion = bool(directa or indirecta)
+    todosRecursivos = sorted(directosSet | {nt for nt, _ in indirecta})
 
     print("\n── Resumen ─────────────────────────────────────────────────")
-    if tiene_recursion:
-        print(f"  NTs con recursión izq.: {todos_recursivos}")
+    if tieneRecursion:
+        print(f"  NTs con recursión izq.: {todosRecursivos}")
         print("\n  Tipo de recursión:")
-        for nt in todos_recursivos:
+        for nt in todosRecursivos:
             tipos = []
-            if nt in directos_set:
+            if nt in directosSet:
                 tipos.append("DIRECTA")
             if nt in {n for n, _ in indirecta}:
                 tipos.append("INDIRECTA")
@@ -183,7 +166,7 @@ def main():
         print("  La gramática NO tiene recursión por la izquierda.")
 
     print("\n" + "=" * 62)
-    print(f"  RESULTADO: {'TIENE recursión por la izquierda' if tiene_recursion else 'SIN recursión por la izquierda'}")
+    print(f"  RESULTADO: {'TIENE recursión por la izquierda' if tieneRecursion else 'SIN recursión por la izquierda'}")
     print("=" * 62)
 
 

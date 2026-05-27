@@ -18,7 +18,7 @@ Algoritmo:
 
 # ─── Lectura de gramática ─────────────────────────────────────────────────
 
-def leer_gramatica():
+def leerGramatica():
     gramatica = {}
     orden = []
     print("Ingrese la gramática ambigua (formato: A -> alfa | beta)")
@@ -48,17 +48,11 @@ def leer_gramatica():
 
 # ─── Detección ──────────────────────────────────────────────────────────────
 
-def extraer_operadores_binarios(gramatica, nt):
-    """
-    Devuelve (ops, bases):
-      ops  = lista de operadores encontrados en  A → A op A
-      bases = lista de producciones no-operador  (A → ( A ), A → id, ...)
-    """
+def extraerOperadoresBinarios(gramatica, nt):
     nts = set(gramatica.keys())
     ops = []
     bases = []
     for prod in gramatica.get(nt, []):
-        # Patrón: A → A op A   (longitud 3, primero y último son el mismo NT)
         if (len(prod) == 3
                 and prod[0] == nt
                 and prod[1] not in nts
@@ -69,10 +63,9 @@ def extraer_operadores_binarios(gramatica, nt):
     return ops, bases
 
 
-def detectar_nt_ambiguo(gramatica, orden):
-    """Devuelve el primer NT que tiene producciones A → A op A."""
+def detectarNtAmbiguo(gramatica, orden):
     for nt in orden:
-        ops, _ = extraer_operadores_binarios(gramatica, nt)
+        ops, _ = extraerOperadoresBinarios(gramatica, nt)
         if ops:
             return nt
     return None
@@ -80,39 +73,30 @@ def detectar_nt_ambiguo(gramatica, orden):
 
 # ─── Reescritura ─────────────────────────────────────────────────────────────
 
-def reescribir_con_precedencia(nt_ambiguo, ops, bases, grupos_precedencia, nombre_base):
-    """
-    Genera la gramática no ambigua con la cadena de no-terminales.
-
-    grupos_precedencia: lista de listas, de MENOR a MAYOR precedencia.
-    nombre_base: nombre del NT de mayor precedencia (para los casos base).
-    """
+def reescribirConPrecedencia(ntAmbiguo, ops, bases, gruposPrecedencia, nombreBase):
     nueva = {}
     nombres = []
 
-    # Un nivel por cada grupo de operadores
-    for i, grupo in enumerate(grupos_precedencia):
-        nivel = f"{nt_ambiguo}{i}" if i > 0 else nt_ambiguo
-        siguiente = (f"{nt_ambiguo}{i+1}" if i + 1 < len(grupos_precedencia)
-                     else nombre_base)
+    for i, grupo in enumerate(gruposPrecedencia):
+        nivel = f"{ntAmbiguo}{i}" if i > 0 else ntAmbiguo
+        siguiente = (f"{ntAmbiguo}{i+1}" if i + 1 < len(gruposPrecedencia)
+                     else nombreBase)
         nombres.append(nivel)
         prods = []
         for op in grupo:
-            prods.append([nivel, op, siguiente])   # asociatividad izquierda
-        prods.append([siguiente])                   # alternativa base
+            prods.append([nivel, op, siguiente])
+        prods.append([siguiente])
         nueva[nivel] = prods
 
-    # Nivel base (paréntesis, identificadores, etc.)
-    base_prods = []
+    baseProds = []
     for prod in bases:
-        # Reemplaza referencias al NT ambiguo original por el nivel 0
-        base_prods.append([nt_ambiguo if s == nt_ambiguo else s for s in prod])
-    nueva[nombre_base] = base_prods
+        baseProds.append([ntAmbiguo if s == ntAmbiguo else s for s in prod])
+    nueva[nombreBase] = baseProds
 
     return nueva, nombres
 
 
-def imprimir_gramatica(gramatica, orden):
+def imprimirGramatica(gramatica, orden):
     for nt in orden:
         for prod in gramatica.get(nt, []):
             print(f"  {nt} → {' '.join(prod)}")
@@ -125,27 +109,25 @@ def main():
     print("  EJERCICIO 2: Eliminación de Ambigüedad en GIC")
     print("=" * 62 + "\n")
 
-    gramatica, orden = leer_gramatica()
+    gramatica, orden = leerGramatica()
     if not gramatica:
         print("[!] Gramática vacía."); return
 
     inicio = orden[0]
     print(f"\n  Símbolo inicial : {inicio}")
     print("  Gramática ingresada:")
-    imprimir_gramatica(gramatica, orden)
+    imprimirGramatica(gramatica, orden)
 
-    # ── Detectar NT ambiguo ──
-    nt_amb = detectar_nt_ambiguo(gramatica, orden)
-    if nt_amb is None:
+    ntAmb = detectarNtAmbiguo(gramatica, orden)
+    if ntAmb is None:
         print("\n[OK] No se detectaron patrones A → A op A. La gramática podría no ser ambigua.")
         return
 
-    ops, bases = extraer_operadores_binarios(gramatica, nt_amb)
-    print(f"\n[!] NT ambiguo detectado: {nt_amb}")
+    ops, bases = extraerOperadoresBinarios(gramatica, ntAmb)
+    print(f"\n[!] NT ambiguo detectado: {ntAmb}")
     print(f"    Operadores encontrados: {ops}")
     print(f"    Producciones base      : {['  '.join(b) for b in bases]}")
 
-    # ── Pedir precedencia al usuario ──
     print(f"\n  Operadores a ordenar: {ops}")
     print("  Ingrese los grupos de precedencia de MENOR a MAYOR.")
     print("  Separe operadores del mismo nivel con coma, grupos distintos con Enter.")
@@ -169,7 +151,6 @@ def main():
         grupos.append(validos)
         usados.update(validos)
 
-    # Si quedaron operadores sin asignar, van al último nivel
     restantes = [op for op in ops if op not in usados]
     if restantes:
         grupos.append(restantes)
@@ -177,29 +158,25 @@ def main():
     if not grupos:
         print("[!] No se ingresaron grupos de precedencia."); return
 
-    # ── Generar NT base ──
-    nombre_base = f"{nt_amb}_base"
+    nombreBase = f"{ntAmb}_base"
 
-    # ── Reescribir ──
-    nueva_gram, niveles = reescribir_con_precedencia(
-        nt_amb, ops, bases, grupos, nombre_base
+    nuevaGram, niveles = reescribirConPrecedencia(
+        ntAmb, ops, bases, grupos, nombreBase
     )
 
-    # Conservar el resto de la gramática (NTs distintos al ambiguo)
-    orden_final = []
+    ordenFinal = []
     for nt in niveles:
-        if nt not in orden_final:
-            orden_final.append(nt)
-    if nombre_base not in orden_final:
-        orden_final.append(nombre_base)
+        if nt not in ordenFinal:
+            ordenFinal.append(nt)
+    if nombreBase not in ordenFinal:
+        ordenFinal.append(nombreBase)
     for nt in orden:
-        if nt != nt_amb and nt not in orden_final:
-            orden_final.append(nt)
-            nueva_gram[nt] = gramatica[nt]
+        if nt != ntAmb and nt not in ordenFinal:
+            ordenFinal.append(nt)
+            nuevaGram[nt] = gramatica[nt]
 
-    # ── Mostrar resultado ──
     print("\n── Gramática NO AMBIGUA resultante ─────────────────────────")
-    imprimir_gramatica(nueva_gram, orden_final)
+    imprimirGramatica(nuevaGram, ordenFinal)
 
     print("\n  Jerarquía de precedencia aplicada (menor → mayor):")
     for i, g in enumerate(grupos):

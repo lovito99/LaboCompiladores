@@ -21,7 +21,7 @@ Algoritmo estándar (Dragon Book):
 
 # ─── Lectura de gramática ─────────────────────────────────────────────────────
 
-def leer_gramatica():
+def leerGramatica():
     gramatica = {}
     orden = []
     print("Ingrese la gramática (formato: A -> alfa | beta)")
@@ -52,12 +52,6 @@ def leer_gramatica():
 # ─── Paso 1: sustitución de producciones Ai → Aj γ ──────────────────────────
 
 def sustituir(gramatica, ai, aj):
-    """
-    Reemplaza todas las producciones de Ai que comienzan con Aj
-    por las expansiones de Aj.
-    Ejemplo: Ai → Aj γ  y  Aj → δ1 | δ2
-             →  Ai → δ1 γ | δ2 γ
-    """
     nuevas = []
     for prod in gramatica[ai]:
         if prod and prod[0] == aj:
@@ -71,49 +65,33 @@ def sustituir(gramatica, ai, aj):
 
 # ─── Paso 2: eliminación de recursión directa ────────────────────────────────
 
-def eliminar_recursion_directa(gramatica, orden, ai):
-    """
-    Elimina la recursión directa de Ai.
-    Si Ai → Ai α | β  entonces se genera  Ai', y:
-      Ai  → β Ai'
-      Ai' → α Ai' | ε
-    Devuelve el nombre del nuevo NT creado (o None si no había recursión).
-    """
+def eliminarRecursionDirecta(gramatica, orden, ai):
     prods = gramatica[ai]
-    recursivas = [p[1:] for p in prods if p and p[0] == ai]   # los α
-    no_recursivas = [p for p in prods if not p or p[0] != ai]  # los β
+    recursivas = [p[1:] for p in prods if p and p[0] == ai]
+    noRecursivas = [p for p in prods if not p or p[0] != ai]
 
     if not recursivas:
-        return None  # sin recursión directa, nada que hacer
+        return None
 
-    ai_prima = f"{ai}'"
-    # Garantizar nombre único
-    while ai_prima in gramatica:
-        ai_prima += "'"
+    aiPrima = f"{ai}'"
+    while aiPrima in gramatica:
+        aiPrima += "'"
 
-    # Ai  → β Ai'
-    gramatica[ai] = [b + [ai_prima] for b in no_recursivas]
+    gramatica[ai] = [b + [aiPrima] for b in noRecursivas]
+    gramatica[aiPrima] = [a + [aiPrima] for a in recursivas] + [['eps']]
 
-    # Ai' → α Ai' | ε
-    gramatica[ai_prima] = [a + [ai_prima] for a in recursivas] + [['eps']]
-
-    orden.append(ai_prima)
-    return ai_prima
+    orden.append(aiPrima)
+    return aiPrima
 
 
 # ─── Algoritmo principal ─────────────────────────────────────────────────────
 
-def eliminar_toda_recursion(gramatica, orden):
-    """
-    Aplica el algoritmo completo sobre todos los no-terminales originales.
-    Modifica 'gramatica' y 'orden' en su lugar.
-    """
-    n = len(orden)  # solo iteramos sobre los NTs originales
-    log = []        # registro de transformaciones
+def eliminarTodaRecursion(gramatica, orden):
+    n = len(orden)
+    log = []
 
     for i in range(n):
         ai = orden[i]
-        # Sustituir referencias a Aj (j < i)
         for j in range(i):
             aj = orden[j]
             antes = [list(p) for p in gramatica[ai]]
@@ -124,17 +102,16 @@ def eliminar_toda_recursion(gramatica, orden):
                 for p in despues:
                     log.append(f"    {ai} → {' '.join(p)}")
 
-        # Eliminar recursión directa
-        nt_nuevo = eliminar_recursion_directa(gramatica, orden, ai)
-        if nt_nuevo:
-            log.append(f"  Recursión directa eliminada en {ai}  →  se crea {nt_nuevo}")
+        ntNuevo = eliminarRecursionDirecta(gramatica, orden, ai)
+        if ntNuevo:
+            log.append(f"  Recursión directa eliminada en {ai}  →  se crea {ntNuevo}")
 
     return log
 
 
 # ─── Utilidades de impresión ─────────────────────────────────────────────────
 
-def imprimir_gramatica(gramatica, orden):
+def imprimirGramatica(gramatica, orden):
     for nt in orden:
         if nt in gramatica:
             for prod in gramatica[nt]:
@@ -148,23 +125,21 @@ def main():
     print("  EJERCICIO 4: Eliminación de Recursión por la Izquierda")
     print("=" * 62 + "\n")
 
-    gramatica, orden = leer_gramatica()
+    gramatica, orden = leerGramatica()
     if not gramatica:
         print("[!] Gramática vacía."); return
 
     print(f"\n  Símbolo inicial : {orden[0]}")
     print("  Gramática ORIGINAL:")
-    imprimir_gramatica(gramatica, orden)
+    imprimirGramatica(gramatica, orden)
 
-    # Verificar si hay recursión
     nts = set(gramatica.keys())
-    tiene_recursion = any(
+    tieneRecursion = any(
         any(p and p[0] == nt for p in prods)
         for nt, prods in gramatica.items()
     )
 
-    if not tiene_recursion:
-        # Comprobar también indirecta (ciclos)
+    if not tieneRecursion:
         from collections import defaultdict, deque
         grafo = defaultdict(set)
         for nt in nts:
@@ -177,25 +152,25 @@ def main():
             while cola:
                 nodo = cola.popleft()
                 if nodo == nt:
-                    tiene_recursion = True
+                    tieneRecursion = True
                     break
                 if nodo not in visitados:
                     visitados.add(nodo)
                     cola.extend(grafo[nodo] - visitados)
-            if tiene_recursion:
+            if tieneRecursion:
                 break
 
-    if not tiene_recursion:
+    if not tieneRecursion:
         print("\n[OK] La gramática NO tiene recursión por la izquierda.")
         print("     No se requiere transformación.")
         return
 
     print("\n── Aplicando algoritmo de eliminación ──────────────────────")
     import copy
-    gramatica_nueva = copy.deepcopy(gramatica)
-    orden_nuevo = list(orden)
+    gramaticaNueva = copy.deepcopy(gramatica)
+    ordenNuevo = list(orden)
 
-    log = eliminar_toda_recursion(gramatica_nueva, orden_nuevo)
+    log = eliminarTodaRecursion(gramaticaNueva, ordenNuevo)
 
     if log:
         print("\n  Pasos realizados:")
@@ -203,7 +178,7 @@ def main():
             print(linea)
 
     print("\n── Gramática RESULTANTE (sin recursión izquierda) ──────────")
-    imprimir_gramatica(gramatica_nueva, orden_nuevo)
+    imprimirGramatica(gramaticaNueva, ordenNuevo)
 
     print("\n  Leyenda: 'eps' representa ε (cadena vacía)")
     print("\n" + "=" * 62)

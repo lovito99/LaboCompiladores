@@ -36,10 +36,7 @@ def leerGramatica():
         if nt not in gramatica:
             gramatica[nt] = []
             orden.append(nt)
-        for alt in der.split('|'):
-            simbolos = alt.strip().split()
-            if simbolos:
-                gramatica[nt].append(simbolos)
+        gramatica[nt] += [alt.split() for alt in der.split('|') if alt.strip()]
     return gramatica, orden
 
 

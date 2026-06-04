@@ -1,5 +1,9 @@
 # Laboratorio 4 — Ambigüedad y Recursión en Gramáticas Independientes del Contexto
 
+**Nombre:** Efrain Vitorino Maric
+**Código:** 160337
+**Curso:** Compiladores
+
 Implementaciones en Python de algoritmos de análisis y transformación de GIC.
 
 ---

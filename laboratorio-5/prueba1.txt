@@ -1,0 +1,6 @@
+E -> T Ep
+Ep -> + T Ep | eps
+T -> F Tp
+Tp -> * F Tp | eps
+F -> ( E ) | id
+

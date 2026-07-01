@@ -7,7 +7,7 @@
 **Universidad:** Universidad Nacional San Antonio Abad del Cusco
 **Escuela Profesional:** Ingenieria Informatica y de Sistemas
 
-Implementacion de un analizador sintactico LR usando Flex y Bison. El laboratorio define la gramatica de un mini lenguaje imperativo, integra el analizador lexico con el sintactico, genera la tabla LR de Bison y prueba entradas validas e invalidas.
+Implementacion de un analizador sintactico LR usando Flex y Bison. El laboratorio define la gramatica de un mini lenguaje imperativo, acepta expresiones aritmeticas sueltas como `1+2`, integra el analizador lexico con el sintactico, genera la tabla LR de Bison y prueba entradas validas e invalidas.
 
 ---
 
@@ -26,15 +26,17 @@ Implementar un analizador sintactico LR utilizando generadores de analizadores s
 | `Makefile` | Automatiza la compilacion, pruebas y generacion de la tabla LR. |
 | `prueba1.txt` | Programa valido con declaraciones, asignaciones, lectura y escritura. |
 | `prueba2.txt` | Programa valido con bloque, `while`, `if`, `else` y condiciones booleanas. |
-| `prueba3.txt` | Programa con errores sintacticos para probar recuperacion. |
+| `prueba3.txt` | Expresiones con sumas validas e invalidas para probar reconocimiento y recuperacion. |
 
 ---
 
 ## Gramatica del lenguaje
 
 ```text
-programa              -> lista_sentencias
-lista_sentencias      -> ε | lista_sentencias sentencia
+programa              -> lista_elementos
+lista_elementos       -> ε | lista_elementos sentencia
+                       | lista_elementos expresion fin_linea
+                       | lista_elementos fin_linea
 
 sentencia             -> declaracion ';'
                        | asignacion ';'
@@ -75,6 +77,8 @@ expresion             -> expresion '+' expresion
                        | '(' expresion ')'
                        | numero
                        | id
+
+fin_linea             -> salto_de_linea | ';'
 ```
 
 ---
@@ -147,7 +151,7 @@ Entrada aceptada por la gramatica.
 
 ### `make test3`
 
-La tercera prueba incluye errores intencionales. El parser debe reportarlos y continuar analizando las sentencias que pueda recuperar.
+La tercera prueba incluye sumas correctas (`1+2`, `1+2+3`, etc.) y errores intencionales (`3+`, `+4`). El parser debe reportar los errores y continuar analizando las expresiones restantes.
 
 ---
 

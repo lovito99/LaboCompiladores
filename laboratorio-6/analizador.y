@@ -36,6 +36,9 @@ int errores_sintacticos = 0;
 %token <ival> NUMERO BOOL_LITERAL
 %token INT FLOAT BOOL IF ELSE WHILE READ PRINT
 %token GE LE EQ NE AND OR NOT
+%token FIN_LINEA
+
+%type <ival> expresion
 
 %left OR
 %left AND
@@ -50,15 +53,45 @@ int errores_sintacticos = 0;
 %%
 
 programa:
-      lista_sentencias
+      lista_elementos
         {
             printf("\nAnalisis sintactico finalizado correctamente.\n");
         }
     ;
 
-lista_sentencias:
+lista_elementos:
       /* vacio */
-    | lista_sentencias sentencia
+    | lista_elementos FIN_LINEA
+    | lista_elementos elemento
+    ;
+
+elemento:
+      sentencia
+    | expresion_suelta
+    | error FIN_LINEA
+        {
+            fprintf(stderr, "Recuperacion: se descarto la expresion erronea en la linea %d.\n", @1.first_line);
+            yyerrok;
+        }
+    ;
+
+expresion_suelta:
+      expresion FIN_LINEA
+        {
+            if ($1) {
+                printf("Linea %d: sintaxis correcta. Suma encontrada.\n", @1.first_line);
+            } else {
+                printf("Linea %d: expresion valida.\n", @1.first_line);
+            }
+        }
+    | expresion ';'
+        {
+            if ($1) {
+                printf("Linea %d: sintaxis correcta. Suma encontrada.\n", @1.first_line);
+            } else {
+                printf("Linea %d: expresion valida.\n", @1.first_line);
+            }
+        }
     ;
 
 sentencia:
@@ -137,7 +170,7 @@ escritura:
     ;
 
 bloque:
-      '{' lista_sentencias '}'
+      '{' lista_elementos '}'
     ;
 
 seleccion:
@@ -169,14 +202,36 @@ operador_relacional:
 
 expresion:
       expresion '+' expresion
+        {
+            $$ = 1;
+        }
     | expresion '-' expresion
+        {
+            $$ = $1 || $3;
+        }
     | expresion '*' expresion
+        {
+            $$ = $1 || $3;
+        }
     | expresion '/' expresion
+        {
+            $$ = $1 || $3;
+        }
     | '-' expresion %prec UMINUS
+        {
+            $$ = $2;
+        }
     | '(' expresion ')'
+        {
+            $$ = $2;
+        }
     | NUMERO
+        {
+            $$ = 0;
+        }
     | IDENTIFICADOR
         {
+            $$ = 0;
             free($1);
         }
     ;

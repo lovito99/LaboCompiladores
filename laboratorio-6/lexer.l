@@ -50,7 +50,9 @@ int errores_lexicos = 0;
 
 "//".*          { /* comentario de una linea */ }
 
-[ \t\r\n]+      { /* ignorar espacios */ }
+\n+             { return FIN_LINEA; }
+
+[ \t\r]+        { /* ignorar espacios */ }
 
 [;(),{}=+\-*/<>] { return yytext[0]; }
 

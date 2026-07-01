@@ -1,6 +1,6 @@
 # Laboratorio 4 — Ambigüedad y Recursión en Gramáticas Independientes del Contexto
 
-**Nombre:** Efrain Vitorino Maric
+**Nombre:** Efrain Vitorino Marin
 **Código:** 160337
 **Curso:** Compiladores
 

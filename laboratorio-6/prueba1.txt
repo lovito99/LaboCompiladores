@@ -1,0 +1,8 @@
+int x, y;
+float promedio;
+bool activo;
+
+x = 10 + 5 * 2;
+y = (x - 3) / 2;
+read(x);
+print(y + 1);

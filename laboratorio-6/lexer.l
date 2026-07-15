@@ -14,7 +14,10 @@ int errores_lexicos = 0;
 
 %%
 
-[0-9]+      { return NUM; }
+[0-9]+      {
+                yylval.valor = atoi(yytext);
+                return NUM;
+            }
 "+"         { return '+'; }
 "-"         { return '-'; }
 "*"         { return '*'; }

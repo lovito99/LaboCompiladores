@@ -1,19 +1,25 @@
-# LABORATORIO N° 06 — Tabla de Analisis Sintactico LR con Flex y Bison
+# LABORATORIO N° 06 — Analizador Sintactico LR con Flex y Bison
 
-**Nombre:** Efrain Vitorino Maric
-**Codigo:** 160337
-**Curso:** IF454AIN - Compiladores
-**Profesor:** Victor Dario Sosa Jauregui
-**Universidad:** Universidad Nacional San Antonio Abad del Cusco
+**Nombre:** Efrain Vitorino Maric  
+**Codigo:** 160337  
+**Curso:** IF454AIN - Compiladores  
+**Profesor:** Victor Dario Sosa Jauregui  
+**Universidad:** Universidad Nacional San Antonio Abad del Cusco  
 **Escuela Profesional:** Ingenieria Informatica y de Sistemas
 
-Implementacion de un analizador sintactico LR usando Flex y Bison. El laboratorio define la gramatica de un mini lenguaje imperativo, acepta expresiones aritmeticas sueltas como `1+2`, integra el analizador lexico con el sintactico, genera la tabla LR de Bison y prueba entradas validas e invalidas.
+Implementacion de un analizador sintactico LR usando Flex y Bison. El programa reconoce expresiones aritmeticas, aplica precedencia de operadores, evalua la expresion y muestra el resultado.
 
 ---
 
 ## Objetivo
 
-Implementar un analizador sintactico LR utilizando generadores de analizadores sintacticos como Flex y Bison, con el objetivo de entender y aplicar los conceptos de analisis sintactico y desarrollo de compiladores.
+Implementar un analizador sintactico con Flex y Bison que permita:
+
+- Reconocer expresiones aritmeticas.
+- Aplicar precedencia y asociatividad de operadores.
+- Evaluar expresiones usando acciones semanticas.
+- Mostrar el resultado de cada expresion ingresada.
+- Detectar errores sintacticos y lexicos.
 
 ---
 
@@ -21,151 +27,167 @@ Implementar un analizador sintactico LR utilizando generadores de analizadores s
 
 | Archivo | Descripcion |
 |---------|-------------|
-| `lexer.l` | Analizador lexico en Flex. Reconoce palabras reservadas, identificadores, numeros, operadores y delimitadores. |
-| `analizador.y` | Analizador sintactico en Bison. Contiene la gramatica, precedencia, acciones semanticas y manejo de errores. |
-| `Makefile` | Automatiza la compilacion, pruebas y generacion de la tabla LR. |
-| `prueba1.txt` | Programa valido con declaraciones, asignaciones, lectura y escritura. |
-| `prueba2.txt` | Programa valido con bloque, `while`, `if`, `else` y condiciones booleanas. |
-| `prueba3.txt` | Expresiones con sumas validas e invalidas para probar reconocimiento y recuperacion. |
+| `lexer.l` | Analizador lexico en Flex. Reconoce numeros, operadores, parentesis y saltos de linea. |
+| `analizador.y` | Analizador sintactico en Bison. Define la gramatica, precedencia y acciones semanticas. |
+| `Makefile` | Automatiza la compilacion, ejecucion y limpieza del proyecto. |
+| `analizador` | Ejecutable generado despues de compilar. |
+
+No se utilizan archivos de prueba porque las expresiones se ingresan manualmente por consola.
 
 ---
 
-## Gramatica del lenguaje
+## Gramatica
 
 ```text
-programa              -> lista_elementos
-lista_elementos       -> ε | lista_elementos sentencia
-                       | lista_elementos expresion fin_linea
-                       | lista_elementos fin_linea
+input  -> vacio
+        | input linea
 
-sentencia             -> declaracion ';'
-                       | asignacion ';'
-                       | lectura ';'
-                       | escritura ';'
-                       | bloque
-                       | seleccion
-                       | iteracion
-                       | error ';'
+linea  -> expr NL
+        | NL
+        | expr operador NL
+        | operador_inicio expr NL
+        | error NL
 
-declaracion           -> tipo lista_identificadores
-tipo                  -> int | float | bool
-lista_identificadores -> id | lista_identificadores ',' id
-
-asignacion            -> id '=' expresion
-lectura               -> read '(' id ')'
-escritura             -> print '(' expresion ')'
-bloque                -> '{' lista_sentencias '}'
-
-seleccion             -> if '(' condicion ')' sentencia
-                       | if '(' condicion ')' sentencia else sentencia
-iteracion             -> while '(' condicion ')' sentencia
-
-condicion             -> expresion operador_relacional expresion
-                       | true | false
-                       | '(' condicion ')'
-                       | '!' condicion
-                       | condicion '&&' condicion
-                       | condicion '||' condicion
-
-operador_relacional   -> '>' | '<' | '>=' | '<=' | '==' | '!='
-
-expresion             -> expresion '+' expresion
-                       | expresion '-' expresion
-                       | expresion '*' expresion
-                       | expresion '/' expresion
-                       | '-' expresion
-                       | '(' expresion ')'
-                       | numero
-                       | id
-
-fin_linea             -> salto_de_linea | ';'
+expr   -> expr '+' expr
+        | expr '-' expr
+        | expr '*' expr
+        | expr '/' expr
+        | '-' expr
+        | '(' expr ')'
+        | NUM
 ```
 
 ---
 
-## Construccion del analizador LR
+## Precedencia y asociatividad
 
-Bison construye automaticamente un analizador LALR(1), una variante practica de LR, a partir del archivo `analizador.y`.
+La precedencia se define en `analizador.y`:
 
-Para compilar:
+```yacc
+%left '+' '-'      /* menor prioridad, izquierda a derecha */
+%left '*' '/'      /* mayor prioridad, izquierda a derecha */
+%right UMINUS      /* signo menos unario: -5 */
+```
+
+En Bison, las declaraciones que aparecen despues tienen mayor prioridad. Por eso `*` y `/` se evaluan antes que `+` y `-`.
+
+La palabra `%left` indica asociatividad de izquierda a derecha.
+
+Ejemplos:
+
+```text
+10-5-2     -> (10-5)-2
+2+3*4      -> 2+(3*4)
+(2+3)*4    -> los parentesis cambian la prioridad
+```
+
+---
+
+## Acciones semanticas
+
+El parser calcula el resultado usando `$$`, `$1`, `$2`, `$3`.
+
+```yacc
+expr '+' expr { $$ = $1 + $3; }
+expr '-' expr { $$ = $1 - $3; }
+expr '*' expr { $$ = $1 * $3; }
+expr '/' expr { $$ = $1 / $3; }
+```
+
+Cada numero reconocido por Flex se guarda en `yylval.valor`:
+
+```lex
+[0-9]+ {
+    yylval.valor = atoi(yytext);
+    return NUM;
+}
+```
+
+---
+
+## Compilacion
+
+Desde la carpeta `laboratorio-6`:
 
 ```bash
+make clean
 make all
 ```
 
 Comandos ejecutados por el `Makefile`:
 
 ```bash
-bison -d -v analizador.y -o analizador.tab.c
+bison -d analizador.y -o analizador.tab.c
 flex -o lexer.yy.c lexer.l
 gcc -Wall -Wextra -g analizador.tab.c lexer.yy.c -o analizador
 ```
 
-La opcion `-v` de Bison genera el archivo `analizador.output`, donde se observa la tabla/automata LR: estados, transiciones, reducciones y desplazamientos.
+---
 
-Para generar solo la tabla LR:
+## Ejecucion manual
 
 ```bash
-make tabla
+make run
 ```
+
+O directamente:
+
+```bash
+./analizador
+```
+
+Luego ingresar expresiones y finalizar con `Ctrl + D`.
 
 ---
 
-## Ejecucion
+## Ejemplos
 
-```bash
-make run       # Ejecuta prueba1.txt
-make test1     # Entrada valida basica
-make test2     # Entrada valida con if/else y while
-make test3     # Entrada con errores
-make test_all  # Ejecuta todas las pruebas y genera la tabla LR
-```
-
-Tambien se puede ejecutar directamente:
-
-```bash
-./analizador < prueba1.txt
-```
-
----
-
-## Salidas esperadas
-
-### `make test1`
+Entrada:
 
 ```text
-LABORATORIO 6 - Analizador Sintactico LR con Flex + Bison
-Ingrese el programa fuente. Presione Ctrl+D para terminar.
-
-Linea 1: declaracion valida.
-Linea 2: declaracion valida.
-Linea 3: declaracion valida.
-Linea 5: asignacion valida.
-Linea 6: asignacion valida.
-Linea 7: lectura valida.
-Linea 8: escritura valida.
-
-Analisis sintactico finalizado correctamente.
-Entrada aceptada por la gramatica.
+1+2*3
+(1+2)*3
+10-5-2
+20/4/5
+-5+2
 ```
 
-### `make test3`
+Salida:
 
-La tercera prueba incluye sumas correctas (`1+2`, `1+2+3`, etc.) y errores intencionales (`3+`, `+4`). El parser debe reportar los errores y continuar analizando las expresiones restantes.
+```text
+Resultado = 7
+Resultado = 9
+Resultado = 3
+Resultado = 1
+Resultado = -3
+```
+
+Entrada con error:
+
+```text
+1+1+
+```
+
+Salida:
+
+```text
+Linea 1: Error sintactico. Expresion incompleta despues del operador.
+```
 
 ---
 
-## Manejo de errores
+## Limpieza
 
-El analizador incluye dos niveles de error:
+```bash
+make clean
+```
 
-- **Errores lexicos:** el lexer reporta simbolos no reconocidos e incrementa `errores_lexicos`.
-- **Errores sintacticos:** Bison usa `%define parse.error verbose` para mostrar mensajes detallados. La produccion `error ';'` permite descartar una sentencia erronea y continuar con el resto del programa.
+Elimina el ejecutable y archivos temporales generados por Bison/Flex.
 
 ---
 
 ## Requisitos
 
-- Flex 2.6+
-- Bison 3.8+
+- Flex
+- Bison
 - GCC

@@ -1,6 +1,7 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 int yylex(void);
 void yyerror(const char *s);
@@ -9,17 +10,18 @@ extern int errores_lexicos;
 extern int yylineno;
 
 int errores_sintacticos = 0;
+int error_matematico = 0;
 %}
 
 %define parse.error verbose
 %locations
 
 %union {
-    int valor;
+    double valor;
 }
 
 %token <valor> NUM
-%token NL
+%token NL POTENCIA
 %type <valor> expr
 
 /*
@@ -29,11 +31,12 @@ int errores_sintacticos = 0;
    Ejemplo: 10 - 5 - 2 se interpreta como (10 - 5) - 2.
 
    En Bison, las declaraciones que aparecen despues tienen mayor prioridad.
-   Por eso '*' y '/' tienen mayor prioridad que '+' y '-'.
+   Por eso '**' tiene mayor prioridad que '*', '/', '%' y que '+' y '-'.
 */
-%left '+' '-'      /* menor prioridad, izquierda a derecha */
-%left '*' '/'      /* mayor prioridad, izquierda a derecha */
-%right UMINUS      /* signo menos unario: -5 */
+%left '+' '-'          /* menor prioridad, izquierda a derecha */
+%left '*' '/' '%'      /* prioridad media, izquierda a derecha */
+%right UMINUS          /* signo menos unario: -5 */
+%right POTENCIA        /* mayor prioridad, derecha a izquierda: 2**3**2 = 2**(3**2) */
 
 %%
 
@@ -46,7 +49,10 @@ linea:
       expr NL
         {
             /* printf("Linea %d: Sintaxis correcta. Expresion valida encontrada.\n", @1.first_line); */
-            printf("Resultado = %d\n", $1);
+            if (!error_matematico) {
+                printf("Resultado = %.10g\n", $1);
+            }
+            error_matematico = 0;
         }
     | NL
         {
@@ -55,16 +61,19 @@ linea:
     | expr operador NL
         {
             errores_sintacticos++;
+            error_matematico = 0;
             fprintf(stderr, "Linea %d: Error sintactico. Expresion incompleta despues del operador.\n", @2.first_line);
         }
     | operador_inicio expr NL
         {
             errores_sintacticos++;
+            error_matematico = 0;
             fprintf(stderr, "Linea %d: Error sintactico. La expresion no puede iniciar con ese operador.\n", @1.first_line);
         }
     | error NL
         {
-            fprintf(stderr, "Linea %d: Recuperacion. Se descarto la expresion incorrecta.\n", @1.first_line);
+            error_matematico = 0;
+            fprintf(stderr, "Linea %d: Recuperacion de error. Se descarto la expresion incorrecta.\n", @1.first_line);
             yyerrok;
         }
     ;
@@ -86,10 +95,33 @@ expr:
         {
             if ($3 == 0) {
                 errores_sintacticos++;
-                fprintf(stderr, "Linea %d: Error sintactico. Division entre cero.\n", @3.first_line);
+                error_matematico = 1;
+                fprintf(stderr, "Linea %d: Error matematico. Division por cero.\n", @3.first_line);
                 $$ = 0;
             } else {
                 $$ = $1 / $3;
+            }
+        }
+    | expr '%' expr
+        {
+            if ($3 == 0) {
+                errores_sintacticos++;
+                error_matematico = 1;
+                fprintf(stderr, "Linea %d: Error matematico. Modulo por cero.\n", @3.first_line);
+                $$ = 0;
+            } else {
+                $$ = fmod($1, $3);
+            }
+        }
+    | expr POTENCIA expr
+        {
+            if ($1 == 0 && $3 == 0) {
+                errores_sintacticos++;
+                error_matematico = 1;
+                fprintf(stderr, "Linea %d: Error matematico. Cero elevado a cero no esta definido.\n", @2.first_line);
+                $$ = 0;
+            } else {
+                $$ = pow($1, $3);
             }
         }
     | '-' expr %prec UMINUS
@@ -111,12 +143,16 @@ operador:
     | '-'
     | '*'
     | '/'
+    | '%'
+    | POTENCIA
     ;
 
 operador_inicio:
       '+'
     | '*'
     | '/'
+    | '%'
+    | POTENCIA
     ;
 
 %%
@@ -130,6 +166,7 @@ void yyerror(const char *s)
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
 
     /* printf("LABORATORIO 6 - Analizador Sintactico LR con Flex + Bison\n"); */
     /* printf("Introduce expresiones. Presiona Ctrl+D para terminar.\n\n"); */

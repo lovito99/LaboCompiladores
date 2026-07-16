@@ -7,7 +7,7 @@
 **Universidad:** Universidad Nacional San Antonio Abad del Cusco  
 **Escuela Profesional:** Ingenieria Informatica y de Sistemas
 
-Implementacion de un analizador sintactico LR usando Flex y Bison. El programa reconoce expresiones aritmeticas, aplica precedencia de operadores, evalua la expresion y muestra el resultado.
+Implementacion de un analizador sintactico LR usando Flex y Bison. El programa reconoce expresiones aritmeticas con numeros enteros y decimales positivos, aplica precedencia de operadores, evalua la expresion y muestra el resultado.
 
 ---
 
@@ -18,8 +18,9 @@ Implementar un analizador sintactico con Flex y Bison que permita:
 - Reconocer expresiones aritmeticas.
 - Aplicar precedencia y asociatividad de operadores.
 - Evaluar expresiones usando acciones semanticas.
+- Incluir suma, resta, multiplicacion, division, modulo y potencia.
 - Mostrar el resultado de cada expresion ingresada.
-- Detectar errores sintacticos y lexicos.
+- Detectar errores sintacticos, lexicos y matematicos.
 
 ---
 
@@ -52,6 +53,8 @@ expr   -> expr '+' expr
         | expr '-' expr
         | expr '*' expr
         | expr '/' expr
+        | expr '%' expr
+        | expr '**' expr
         | '-' expr
         | '(' expr ')'
         | NUM
@@ -64,14 +67,15 @@ expr   -> expr '+' expr
 La precedencia se define en `analizador.y`:
 
 ```yacc
-%left '+' '-'      /* menor prioridad, izquierda a derecha */
-%left '*' '/'      /* mayor prioridad, izquierda a derecha */
-%right UMINUS      /* signo menos unario: -5 */
+%left '+' '-'          /* menor prioridad, izquierda a derecha */
+%left '*' '/' '%'      /* prioridad media, izquierda a derecha */
+%right UMINUS          /* signo menos unario: -5 */
+%right POTENCIA        /* mayor prioridad, derecha a izquierda */
 ```
 
-En Bison, las declaraciones que aparecen despues tienen mayor prioridad. Por eso `*` y `/` se evaluan antes que `+` y `-`.
+En Bison, las declaraciones que aparecen despues tienen mayor prioridad. Por eso `**` se evalua antes que `*`, `/`, `%`, `+` y `-`.
 
-La palabra `%left` indica asociatividad de izquierda a derecha.
+La palabra `%left` indica asociatividad de izquierda a derecha. La potencia usa `%right`, por eso se agrupa de derecha a izquierda.
 
 Ejemplos:
 
@@ -79,6 +83,9 @@ Ejemplos:
 10-5-2     -> (10-5)-2
 2+3*4      -> 2+(3*4)
 (2+3)*4    -> los parentesis cambian la prioridad
+2**3**2      -> 2**(3**2)
+-2**2        -> -(2**2)
+(-2)**2      -> (-2)**2
 ```
 
 ---
@@ -92,13 +99,15 @@ expr '+' expr { $$ = $1 + $3; }
 expr '-' expr { $$ = $1 - $3; }
 expr '*' expr { $$ = $1 * $3; }
 expr '/' expr { $$ = $1 / $3; }
+expr '%' expr { $$ = fmod($1, $3); }
+expr '**' expr { $$ = pow($1, $3); }
 ```
 
-Cada numero reconocido por Flex se guarda en `yylval.valor`:
+Cada numero reconocido por Flex se convierte con `atof` y se guarda en `yylval.valor`:
 
 ```lex
-[0-9]+ {
-    yylval.valor = atoi(yytext);
+[0-9]+(\.[0-9]+)?|\.[0-9]+ {
+    yylval.valor = atof(yytext);
     return NUM;
 }
 ```
@@ -119,8 +128,10 @@ Comandos ejecutados por el `Makefile`:
 ```bash
 bison -d analizador.y -o analizador.tab.c
 flex -o lexer.yy.c lexer.l
-gcc -Wall -Wextra -g analizador.tab.c lexer.yy.c -o analizador
+gcc -Wall -Wextra -g analizador.tab.c lexer.yy.c -o analizador -lm
 ```
+
+El proyecto enlaza la libreria matematica con `-lm` para usar `pow` y `fmod`.
 
 ---
 
@@ -150,6 +161,9 @@ Entrada:
 10-5-2
 20/4/5
 -5+2
+10%3
+10.5%4
+2**3**2
 ```
 
 Salida:
@@ -160,6 +174,9 @@ Resultado = 9
 Resultado = 3
 Resultado = 1
 Resultado = -3
+Resultado = 1
+Resultado = 2.5
+Resultado = 512
 ```
 
 Entrada con error:
@@ -172,6 +189,22 @@ Salida:
 
 ```text
 Linea 1: Error sintactico. Expresion incompleta despues del operador.
+```
+
+Errores matematicos:
+
+```text
+1/0
+0**0
+10%0
+```
+
+Salida:
+
+```text
+Linea 1: Error matematico. Division por cero.
+Linea 2: Error matematico. Cero elevado a cero no esta definido.
+Linea 3: Error matematico. Modulo por cero.
 ```
 
 ---

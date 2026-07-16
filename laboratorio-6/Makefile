@@ -2,6 +2,7 @@ CC=gcc
 BISON=bison
 FLEX=flex
 CFLAGS=-Wall -Wextra -g
+LDFLAGS=-lm
 
 TARGET=analizador
 PARSER=analizador.tab.c
@@ -13,7 +14,7 @@ all: $(TARGET)
 $(TARGET): analizador.y lexer.l
 	$(BISON) -d analizador.y -o $(PARSER)
 	$(FLEX) -o $(LEXER) lexer.l
-	$(CC) $(CFLAGS) $(PARSER) $(LEXER) -o $(TARGET)
+	$(CC) $(CFLAGS) $(PARSER) $(LEXER) -o $(TARGET) $(LDFLAGS)
 	rm -f $(PARSER) $(HEADER) $(LEXER)
 
 run: $(TARGET)

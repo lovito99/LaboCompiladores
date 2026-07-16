@@ -1,0 +1,270 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{array}
+\usepackage{longtable}
+
+\geometry{margin=2.5cm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=blue
+}
+
+\lstdefinestyle{codigo}{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    tabsize=4
+}
+
+\lstset{style=codigo}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    {\Large Universidad Nacional San Antonio Abad del Cusco\par}
+    \vspace{0.3cm}
+    {\large Escuela Profesional de Ingenieria Informatica y de Sistemas\par}
+    \vspace{1.5cm}
+    {\Huge\bfseries Laboratorio Nro. 06\par}
+    \vspace{0.4cm}
+    {\Large Analizador Sintactico LR con Flex y Bison\par}
+    \vspace{1.5cm}
+    \begin{tabular}{>{\bfseries}ll}
+        Curso: & IF454AIN - Compiladores \\
+        Profesor: & Victor Dario Sosa Jauregui \\
+        Estudiante: & Efrain Vitorino Maric \\
+        Codigo: & 160337 \\
+        Repositorio: & \url{https://github.com/lovito99/LaboCompiladores.git} \\
+    \end{tabular}
+    \vfill
+    {\large Cusco, 2026\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Introduccion}
+
+El presente informe describe la implementacion del Laboratorio 6, que consiste en un analizador sintactico LR construido con Flex y Bison. El programa reconoce expresiones aritmeticas, aplica jerarquia de operadores, evalua cada expresion y reporta errores lexicos, sintacticos y matematicos.
+
+Las mejoras incluidas son el operador modulo o resto, el operador potencia, la aceptacion de numeros decimales positivos usando \texttt{atof}, y el manejo de errores para division por cero y cero elevado a cero.
+
+\section{Objetivos}
+
+\begin{itemize}
+    \item Reconocer expresiones aritmeticas mediante un analizador lexico y sintactico.
+    \item Implementar los operadores suma, resta, multiplicacion, division, modulo y potencia.
+    \item Verificar la jerarquia y asociatividad de operadores.
+    \item Aceptar numeros enteros y decimales positivos.
+    \item Reportar errores matematicos para division por cero, modulo por cero y cero potencia cero.
+\end{itemize}
+
+\section{Archivos del proyecto}
+
+\begin{longtable}{|p{4cm}|p{10cm}|}
+\hline
+\textbf{Archivo} & \textbf{Descripcion} \\
+\hline
+\texttt{lexer.l} & Analizador lexico. Reconoce numeros, operadores, parentesis y saltos de linea. \\
+\hline
+\texttt{analizador.y} & Analizador sintactico. Define gramatica, precedencia, acciones semanticas y errores. \\
+\hline
+\texttt{Makefile} & Automatiza la compilacion, ejecucion y limpieza del proyecto. \\
+\hline
+\texttt{informe/} & Carpeta que contiene el documento LaTeX y el PDF del informe. \\
+\hline
+\end{longtable}
+
+\section{Fragmentos de codigo}
+
+\subsection{Reconocimiento de numeros decimales positivos}
+
+El analizador lexico reconoce enteros positivos, decimales con parte entera y decimales que inician con punto. El texto reconocido se convierte a \texttt{double} usando \texttt{atof}.
+
+\begin{lstlisting}[language=C]
+[0-9]+(\.[0-9]+)?|\.[0-9]+ {
+    yylval.valor = atof(yytext);
+    return NUM;
+}
+\end{lstlisting}
+
+\subsection{Precedencia y asociatividad}
+
+La jerarquia se define directamente en Bison. Las declaraciones escritas despues tienen mayor prioridad.
+
+\begin{lstlisting}[language=C]
+%left '+' '-'          /* menor prioridad */
+%left '*' '/' '%'      /* prioridad media */
+%right UMINUS          /* signo menos unario */
+%right POTENCIA        /* mayor prioridad */
+\end{lstlisting}
+
+Con esta configuracion, la potencia tiene mayor prioridad que el producto, division, modulo, suma y resta. Ademas, \texttt{POTENCIA} es asociativa por la derecha, por lo que \texttt{2**3**2} se interpreta como \texttt{2**(3**2)}.
+
+\subsection{Modulo o resto}
+
+El operador modulo se evalua usando \texttt{fmod}, funcion de la libreria matematica.
+
+\begin{lstlisting}[language=C]
+| expr '%' expr
+  {
+      if ($3 == 0) {
+          errores_sintacticos++;
+          error_matematico = 1;
+          fprintf(stderr, "Linea %d: Error matematico. Modulo por cero.\n",
+                  @3.first_line);
+          $$ = 0;
+      } else {
+          $$ = fmod($1, $3);
+      }
+  }
+\end{lstlisting}
+
+\subsection{Potencia}
+
+La potencia se evalua con \texttt{pow}. Se agrega una validacion especial para el caso \texttt{0**0}.
+
+\begin{lstlisting}[language=C]
+| expr POTENCIA expr
+  {
+      if ($1 == 0 && $3 == 0) {
+          errores_sintacticos++;
+          error_matematico = 1;
+          fprintf(stderr,
+                  "Linea %d: Error matematico. Cero elevado a cero no esta definido.\n",
+                  @2.first_line);
+          $$ = 0;
+      } else {
+          $$ = pow($1, $3);
+      }
+  }
+\end{lstlisting}
+
+\subsection{Division por cero}
+
+La division valida el divisor antes de calcular el resultado.
+
+\begin{lstlisting}[language=C]
+| expr '/' expr
+  {
+      if ($3 == 0) {
+          errores_sintacticos++;
+          error_matematico = 1;
+          fprintf(stderr, "Linea %d: Error matematico. Division por cero.\n",
+                  @3.first_line);
+          $$ = 0;
+      } else {
+          $$ = $1 / $3;
+      }
+  }
+\end{lstlisting}
+
+\section{Compilacion}
+
+La compilacion se realiza desde la carpeta \texttt{laboratorio-6}.
+
+\begin{lstlisting}[language=bash]
+make clean
+make all
+\end{lstlisting}
+
+Salida obtenida:
+
+\begin{lstlisting}[language=bash]
+rm -f analizador analizador.tab.c analizador.tab.h lexer.yy.c analizador.output
+bison -d analizador.y -o analizador.tab.c
+flex -o lexer.yy.c lexer.l
+gcc -Wall -Wextra -g analizador.tab.c lexer.yy.c -o analizador -lm
+rm -f analizador.tab.c analizador.tab.h lexer.yy.c
+\end{lstlisting}
+
+\section{Pruebas de ejecucion}
+
+\subsection{Pruebas correctas}
+
+Entrada:
+
+\begin{lstlisting}
+10%3
+10.5%4
+2**3**2
+-2**2
+(-2)**2
+1.5+2.25
+\end{lstlisting}
+
+Salida:
+
+\begin{lstlisting}
+Resultado = 1
+Resultado = 2.5
+Resultado = 512
+Resultado = -4
+Resultado = 4
+Resultado = 3.75
+\end{lstlisting}
+
+\subsection{Verificacion de jerarquia}
+
+\begin{longtable}{|p{4cm}|p{6cm}|p{3cm}|}
+\hline
+\textbf{Expresion} & \textbf{Interpretacion} & \textbf{Resultado} \\
+\hline
+\texttt{2**3**2} & \texttt{2**(3**2)} & \texttt{512} \\
+\hline
+\texttt{-2**2} & \texttt{-(2**2)} & \texttt{-4} \\
+\hline
+\texttt{(-2)**2} & Parentesis cambian la prioridad & \texttt{4} \\
+\hline
+\texttt{1.5+2.25} & Suma de decimales & \texttt{3.75} \\
+\hline
+\end{longtable}
+
+\section{Informe de errores}
+
+Entrada:
+
+\begin{lstlisting}
+1/0
+0**0
+10%0
+\end{lstlisting}
+
+Salida:
+
+\begin{lstlisting}
+Linea 1: Error matematico. Division por cero.
+Linea 2: Error matematico. Cero elevado a cero no esta definido.
+Linea 3: Error matematico. Modulo por cero.
+\end{lstlisting}
+
+Estos errores no imprimen resultado numerico para la expresion incorrecta. El programa marca el error matematico y continua con la siguiente linea de entrada.
+
+\section{Conclusiones}
+
+Se implemento el analizador sintactico LR con soporte para numeros decimales positivos, modulo y potencia. La jerarquia de operadores se controla mediante declaraciones de precedencia de Bison. Tambien se agrego manejo de errores matematicos para evitar resultados invalidos en division por cero, modulo por cero y cero elevado a cero.
+
+\section{Repositorio}
+
+El codigo fuente del laboratorio se encuentra disponible en:
+
+\begin{center}
+\url{https://github.com/lovito99/LaboCompiladores.git}
+\end{center}
+
+\end{document}

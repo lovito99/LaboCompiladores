@@ -9,6 +9,8 @@
 
 Implementacion de un analizador sintactico LR usando Flex y Bison. El programa reconoce expresiones aritmeticas con numeros enteros y decimales positivos, aplica precedencia de operadores, evalua la expresion y muestra el resultado.
 
+**Repositorio:** <https://github.com/lovito99/LaboCompiladores.git>
+
 ---
 
 ## Objetivo
@@ -22,6 +24,17 @@ Implementar un analizador sintactico con Flex y Bison que permita:
 - Mostrar el resultado de cada expresion ingresada.
 - Detectar errores sintacticos, lexicos y matematicos.
 
+Las implementaciones solicitadas para el laboratorio estan incluidas:
+
+| Requisito | Estado | Archivo |
+|-----------|--------|---------|
+| Operador modulo o resto `%` | Implementado con `fmod` | `analizador.y` |
+| Operador potencia `**` | Implementado con `pow` | `analizador.y` |
+| Jerarquia de operadores | Implementada con precedencia Bison | `analizador.y` |
+| Numeros decimales positivos | Implementados con `atof` | `lexer.l` |
+| Division por cero | Reporta error matematico | `analizador.y` |
+| Cero potencia cero | Reporta error matematico | `analizador.y` |
+
 ---
 
 ## Archivos
@@ -31,6 +44,8 @@ Implementar un analizador sintactico con Flex y Bison que permita:
 | `lexer.l` | Analizador lexico en Flex. Reconoce numeros, operadores, parentesis y saltos de linea. |
 | `analizador.y` | Analizador sintactico en Bison. Define la gramatica, precedencia y acciones semanticas. |
 | `Makefile` | Automatiza la compilacion, ejecucion y limpieza del proyecto. |
+| `informe/informe_laboratorio_6.tex` | Informe del laboratorio en LaTeX. |
+| `informe/informe_laboratorio_6.pdf` | Informe compilado en PDF. |
 | `analizador` | Ejecutable generado despues de compilar. |
 
 No se utilizan archivos de prueba porque las expresiones se ingresan manualmente por consola.
@@ -132,6 +147,13 @@ gcc -Wall -Wextra -g analizador.tab.c lexer.yy.c -o analizador -lm
 ```
 
 El proyecto enlaza la libreria matematica con `-lm` para usar `pow` y `fmod`.
+
+Para compilar el informe:
+
+```bash
+cd informe
+pdflatex informe_laboratorio_6.tex
+```
 
 ---
 
